@@ -67,15 +67,15 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				}
 				req = append(req,
 					prompb.TimeSeries{
-						Labels:  append(baseLabels, prompb.Label{Name: "__name__", Value: "cpu_usage"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: "cpu_usage"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: math.Max(float64(base%100+(l.random(20)-10)), 0)}},
 					},
 					prompb.TimeSeries{
-						Labels:  append(baseLabels, prompb.Label{Name: "__name__", Value: "ram_usage"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: "ram_usage"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: math.Max(float64(base%1000+(l.random(200)-100)), 0)}},
 					},
 					prompb.TimeSeries{
-						Labels:  append(baseLabels, prompb.Label{Name: "__name__", Value: "network_usage"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: "network_usage"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: math.Max(float64(base%1000000+(l.random(2000)-1000)), 0)}},
 					},
 				)
@@ -83,11 +83,11 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				counterName := "http_requests_total"
 				counters[container] += float64(l.random(5) + 1) // Increment by a random amount
 				req = append(req, prompb.TimeSeries{
-					Labels:  append(baseLabels, prompb.Label{Name: "__name__", Value: counterName}),
+					Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: counterName}),
 					Samples: []prompb.Sample{{Timestamp: now, Value: counters[container]}},
 				})
 
-				histName := "request_latency_seconds"
+				histName := "request_latency_seconds_bucket"
 				if _, ok := histograms[container]; !ok {
 					histograms[container] = &histogramState{
 						buckets: map[float64]uint64{0.1: 0, 0.5: 0, 1: 0, 5: 0},
@@ -103,7 +103,7 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 					}
 				}
 
-				histLabels := append(baseLabels, prompb.Label{Name: "__name__", Value: histName})
+				histLabels := apnd(baseLabels, prompb.Label{Name: "__name__", Value: histName})
 				bucketKeys := make([]float64, 0, len(hState.buckets))
 				for k := range hState.buckets {
 					bucketKeys = append(bucketKeys, k)
@@ -111,7 +111,7 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				sort.Float64s(bucketKeys)
 
 				for _, le := range bucketKeys {
-					bucketLabels := append(histLabels, prompb.Label{Name: "le", Value: fmt.Sprintf("%v", le)})
+					bucketLabels := apnd(cpy(histLabels), prompb.Label{Name: "le", Value: fmt.Sprintf("%v", le)})
 					req = append(req, prompb.TimeSeries{
 						Labels:  bucketLabels,
 						Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.buckets[le])}},
@@ -119,23 +119,23 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				}
 				// Add +Inf bucket (same value as count)
 				req = append(req, prompb.TimeSeries{
-					Labels:  append(histLabels, prompb.Label{Name: "le", Value: "+Inf"}),
+					Labels:  apnd(histLabels, prompb.Label{Name: "le", Value: "+Inf"}),
 					Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.count)}},
 				})
 				// Add _sum and _count series
 				req = append(req,
 					prompb.TimeSeries{
-						Labels:  append(histLabels, prompb.Label{Name: "__name__", Value: histName + "_sum"}),
+						Labels:  apnd(histLabels, prompb.Label{Name: "__name__", Value: histName + "_sum"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: hState.sum}},
 					},
 					prompb.TimeSeries{
-						Labels:  append(histLabels, prompb.Label{Name: "__name__", Value: histName + "_count"}),
+						Labels:  apnd(histLabels, prompb.Label{Name: "__name__", Value: histName + "_count"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.count)}},
 					},
 				)
 
 				summaryName := "response_size_bytes"
-				summaryLabels := append(baseLabels, prompb.Label{Name: "__name__", Value: summaryName})
+				summaryLabels := apnd(baseLabels, prompb.Label{Name: "__name__", Value: summaryName})
 
 				p50 := float64(base%1000 + l.random(500))
 				p90 := p50 * (1.5 + l.rnd.Float64())
@@ -143,23 +143,23 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 
 				req = append(req,
 					prompb.TimeSeries{ // P50
-						Labels:  append(summaryLabels, prompb.Label{Name: "quantile", Value: "0.5"}),
+						Labels:  apnd(summaryLabels, prompb.Label{Name: "quantile", Value: "0.5"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: p50}},
 					},
 					prompb.TimeSeries{ // P90
-						Labels:  append(summaryLabels, prompb.Label{Name: "quantile", Value: "0.9"}),
+						Labels:  apnd(summaryLabels, prompb.Label{Name: "quantile", Value: "0.9"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: p90}},
 					},
 					prompb.TimeSeries{ // P99
-						Labels:  append(summaryLabels, prompb.Label{Name: "quantile", Value: "0.99"}),
+						Labels:  apnd(summaryLabels, prompb.Label{Name: "quantile", Value: "0.99"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: p99}},
 					},
 					prompb.TimeSeries{ // Summary Sum
-						Labels:  append(baseLabels, prompb.Label{Name: "__name__", Value: summaryName + "_sum"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: summaryName + "_sum"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: p99 * 10}},
 					},
 					prompb.TimeSeries{ // Summary Count
-						Labels:  append(baseLabels, prompb.Label{Name: "__name__", Value: summaryName + "_count"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: summaryName + "_count"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: 100}},
 					},
 				)
@@ -168,4 +168,17 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 		},
 	}
 	return l
+}
+
+func cpy[T any](a []T) []T {
+	res := make([]T, len(a))
+	copy(res, a)
+	return res
+}
+
+func apnd[T any](a []T, v ...T) []T {
+	res := make([]T, len(a)+len(v))
+	copy(res, a)
+	copy(res[len(a):], v)
+	return res
 }
