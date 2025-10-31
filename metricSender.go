@@ -111,7 +111,7 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				sort.Float64s(bucketKeys)
 
 				for _, le := range bucketKeys {
-					bucketLabels := apnd(cpy(histLabels), prompb.Label{Name: "le", Value: fmt.Sprintf("%v", le)})
+					bucketLabels := apnd(histLabels, prompb.Label{Name: "le", Value: fmt.Sprintf("%v", le)})
 					req = append(req, prompb.TimeSeries{
 						Labels:  bucketLabels,
 						Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.buckets[le])}},
@@ -168,12 +168,6 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 		},
 	}
 	return l
-}
-
-func cpy[T any](a []T) []T {
-	res := make([]T, len(a))
-	copy(res, a)
-	return res
 }
 
 func apnd[T any](a []T, v ...T) []T {
