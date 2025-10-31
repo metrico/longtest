@@ -50,6 +50,7 @@ func writeTest() {
 					}
 				}
 			}
+		}
 		switch useDrilldown {
 		case "1", "true", "TRUE", "True":
 			headers["X-Drilldown"] = "1"
