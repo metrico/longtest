@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io"
 	"math/rand"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
@@ -21,11 +22,9 @@ const (
 	REQ_TIME_MS = "req_time_ms"
 )
 
-var (
-	sentSizeCounter = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "sent_size_count",
-	}, []string{"id"})
-)
+var sentSizeCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "sent_size_count",
+}, []string{"id"})
 
 type IRequest interface {
 	Serialize() ([]byte, error)
@@ -140,12 +139,12 @@ func (l *GenericSender) send(request IRequest) error {
 		if url == "" {
 			url = l.URL + l.path
 		}
-		var statsInc = func(name string) {
+		statsInc := func(name string) {
 			if count {
 				stats.Inc(name)
 			}
 		}
-		var statsObserve = func(name string, value int64) {
+		statsObserve := func(name string, value int64) {
 			if count {
 				stats.Observe(name, value)
 			}
@@ -165,7 +164,9 @@ func (l *GenericSender) send(request IRequest) error {
 					return
 				}
 			}
-			req.Header.Set("Content-Type", "application/json")
+			// req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-API-Key", "7a693d0c211c278c85c3fd20ac8c8b78")
+			req.Header.Set("X-API-Secret", "13e42b6fc064e852008255791bb7f03f5f92428b4df4b36910e74025fefe6f78")
 			for k, v := range l.Headers {
 				req.Header.Set(k, v)
 			}
