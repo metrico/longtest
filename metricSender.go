@@ -87,7 +87,7 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 					Samples: []prompb.Sample{{Timestamp: now, Value: counters[container]}},
 				})
 
-				histName := "request_latency_seconds_bucket"
+				histName := "request_latency_seconds"
 				if _, ok := histograms[container]; !ok {
 					histograms[container] = &histogramState{
 						buckets: map[float64]uint64{0.1: 0, 0.5: 0, 1: 0, 5: 0},
@@ -103,7 +103,6 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 					}
 				}
 
-				histLabels := apnd(baseLabels, prompb.Label{Name: "__name__", Value: histName})
 				bucketKeys := make([]float64, 0, len(hState.buckets))
 				for k := range hState.buckets {
 					bucketKeys = append(bucketKeys, k)
@@ -111,7 +110,9 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				sort.Float64s(bucketKeys)
 
 				for _, le := range bucketKeys {
-					bucketLabels := apnd(histLabels, prompb.Label{Name: "le", Value: fmt.Sprintf("%v", le)})
+					bucketLabels := apnd(baseLabels,
+						prompb.Label{Name: "le", Value: fmt.Sprintf("%v", le)},
+						prompb.Label{Name: "__name__", Value: histName + "_bucket"})
 					req = append(req, prompb.TimeSeries{
 						Labels:  bucketLabels,
 						Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.buckets[le])}},
@@ -119,17 +120,19 @@ func NewMetricSender(opts LogSenderOpts) ISender {
 				}
 				// Add +Inf bucket (same value as count)
 				req = append(req, prompb.TimeSeries{
-					Labels:  apnd(histLabels, prompb.Label{Name: "le", Value: "+Inf"}),
+					Labels: apnd(baseLabels,
+						prompb.Label{Name: "le", Value: "+Inf"},
+						prompb.Label{Name: "__name__", Value: histName + "_bucket"}),
 					Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.count)}},
 				})
 				// Add _sum and _count series
 				req = append(req,
 					prompb.TimeSeries{
-						Labels:  apnd(histLabels, prompb.Label{Name: "__name__", Value: histName + "_sum"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: histName + "_sum"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: hState.sum}},
 					},
 					prompb.TimeSeries{
-						Labels:  apnd(histLabels, prompb.Label{Name: "__name__", Value: histName + "_count"}),
+						Labels:  apnd(baseLabels, prompb.Label{Name: "__name__", Value: histName + "_count"}),
 						Samples: []prompb.Sample{{Timestamp: now, Value: float64(hState.count)}},
 					},
 				)
